@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+
+        body{
+
+    background-color:#B86259  ;
+        }
+        /* Add any additional styling here if needed */
+        rect {
+            stroke: #fff;
+        }
+
+        text {
+            fill: white;
+            font-size: 12px;
+        }
+
+        .legend {
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+        }
+
+        .legend-rect {
+            stroke: black;
+            stroke-width: 3;
+            fill: none;
+        }
+
+        .legend-text {
+            fill: black;
+            font-size: larger;
+        }
+
+        .highlight {
+            stroke:black;
+            stroke-width: 5;
+        }
+
+        /* Add styling for the container of the visualizations */
+        .visualization-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Style for individual visualizations */
+        .visualization {
+            width: 48%; /* Adjust the width as needed */
+            margin-bottom: 20px; /* Add some margin between visualizations */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="visualization-container">
+        <div id="my_dataviz" class="visualization"></div>
+        <div id="treemap" class="visualization"></div>
+    </div>
+    <div id="legend"></div>
+    <div>
+        <label for="nInput">Enter a number:</label>
+        <input type="number" id="nInput" value="0">
+        <button onclick="updateN()">Update N</button>
+    </div>
+    <script>   
+            function setN(value) {
+            n = value;
+            // Call your visualization functions with the updated value of n
+            treemap();
+            arc();
+        }     // Function to update N based on user input and trigger visualizations
+        function updateN() {
+            const userInput = document.getElementById("nInput").value;
+            setN(parseInt(userInput));
+        }
+        
+        treemap();
+
+        arc();
+
+        // var n = parseInt(prompt("Enter a number:"));
+        var n =0;
+
+            function arc() {
+
+                
+                // set the dimensions and margins of the graph
+                const margin = { top: 0, right: 30, bottom: 50, left: 60 },
+                    width = 650 - margin.left - margin.right,
+                    height = 400 - margin.top - margin.bottom;
+
+                // append the svg object to the body of the page
+                const svg = d3.select("#my_dataviz")
+                    .append("svg")
+                    .attr("viewBox", [0, 0, width + 90, height + 80])
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+                d3.csv("get_df_csv").then(function (data) {
+                    // Dummy data (replace this with actual data loading from your endpoint)
+                    // const data = [
+                    //     { Speaker: 'Alice', Reply_To: 'Bob', Emotion: 'Joy' },
+                    //     { Speaker: 'Charlie', Reply_To: 'Eve', Emotion: 'Anger' },
+                    //     { Speaker: 'Eve', Reply_To: 'Isaac', Emotion: 'Surprise' },
+                    //     { Speaker: 'Grace', Reply_To: 'Henry', Emotion: 'Sadness' },
+                    //     { Speaker: 'Isaac', Reply_To: 'Jane', Emotion: 'Fear' },
+                    //     { Speaker: 'Kevin', Reply_To: 'Lily', Emotion: 'Disgust' },
+                    //     // Add more data as needed
+                    //     { Speaker: 'Mike', Reply_To: 'Olivia', Emotion: 'Joy' },
+                    //     { Speaker: 'Olivia', Reply_To: 'Paul', Emotion: 'Anger' },
+                    //     { Speaker: 'Quincy', Reply_To: 'Rachel', Emotion: 'Surprise' },
+                    //     { Speaker: 'Sam', Reply_To: 'Tina', Emotion: 'Sadness' },
+                    // ];
+
+                    data = data.slice(n, n+50);
+
+                    // Create a dictionary to count the number of connections for each node
+                    const connectionCount = {};
+                    data.forEach(d => {
+                        connectionCount[d.Speaker] = (connectionCount[d.Speaker] || 0) + 1;
+                        connectionCount[d.Reply_To] = (connectionCount[d.Reply_To] || 0) + 1;
+                    });
+
+                    // List of node names
+                    const allNodes = data.flatMap(d => [d.Speaker, d.Reply_To]);
+
+                    // List of groups
+                    const allGroups = [...new Set(data.map(d => d.Emotion))];
+
+                    // A color scale for groups:
+                    const colorScale = d3.scaleOrdinal()
+                        .domain(allGroups)
+                        .range(['#1f78b4', '#e31a1c', '#33a02c', '#ff7f00', '#6a3d9a', '#a6cee3']);
+
+                    // A linear scale for node size based on the number of connections
+                    const size = d3.scaleLinear()
+                        .domain([1, d3.max(Object.values(connectionCount))])
+                        .range([2, 10]);
+
+                    // A linear scale to position the nodes on the X axis
+                    const x = d3.scalePoint()
+                        .range([0, width])
+                        .domain(allNodes);
+
+                    // Add the links
+                    const links = svg
+                        .selectAll('mylinks')
+                        .data(data)
+                        .join('path')
+                        .attr('d', d => {
+                            start = x(d.Speaker)    // X position of start node on the X axis
+                            end = x(d.Reply_To)  // X position of end node
+                            return ['M', start, height - 30,
+                                'A',
+                                (start - end) / 2, ',',
+                                (start - end) / 2, 0, 0, ',',
+                                start < end ? 1 : 0, end, ',', height - 30].join(' ');
+                        })
+                        .style("fill", "none")
+                        .attr("stroke", d => colorScale(d.Emotion))
+                        .style("stroke-width", 4);
+
+                    // Add the circle for the nodes
+                    const nodes = svg
+                        .selectAll("mynodes")
+                        .data(allNodes)
+                        .join("circle")
+                        .attr("cx", d => x(d))
+                        .attr("cy", height - 30)
+                        .attr("r", d => size(connectionCount[d]))
+                        .style("fill", d => colorScale(data.find(entry => entry.Speaker === d)?.Emotion || data.find(entry => entry.Reply_To === d)?.Emotion))
+                        .attr("stroke", "white");
+
+                    // And give them a label
+                    const labels = svg
+                        .selectAll("mylabels")
+                        .data(allNodes)
+                        .join("text")
+                        .attr("x", 0)
+                        .attr("y", 0)
+                        .text(d => d)
+                        .style("text-anchor", "end")
+                        .attr("transform", d => `translate(${x(d)},${height - 15}) rotate(-45)`)
+                        .style("font-size", 12)
+                        .style("font-family","bold")
+                        .style("fill", "black");
+
+                    // Add the highlighting functionality
+                    nodes.on('mouseover', function (event, d) {
+                        // Highlight the nodes: every node is green except of him
+                        nodes.style('opacity', .2)
+                        d3.select(this).style('opacity', 1)
+
+                        // Highlight the connections
+                        links
+                            .style('stroke', a => a.Speaker === d || a.Reply_To === d ? colorScale(data.find(entry => entry.Speaker === a.Speaker && entry.Reply_To === a.Reply_To)?.Emotion) : '#b8b8b8')
+                            .style('stroke-opacity', a => a.Speaker === d || a.Reply_To === d ? 1 : .2)
+                            .style('stroke-width', a => a.Speaker === d || a.Reply_To === d ? 4 : 1);
+                        labels
+                            .style("font-size", b => b === d ? 18.9 : 2)
+                            .attr("y", b => b === d ? 10 : 0);
+                    })
+                        .on('mouseout', d => {
+                            nodes.style('opacity', 1)
+                            links
+                                .style('stroke', 'grey')
+                                .style('stroke-opacity', .8)
+                                .style('stroke-width', '1')
+                            labels
+                                .style("font-size", 6)
+                        });
+
+                }).catch(function (error) {
+                    console.log("Error loading the CSV file:", error);
+                });
+            }
+
+            function treemap() {
+            d3.csv("get_freqchar_csv").then(function (data) {
+                // Convert frequency and sentiment values to numbers
+                data.forEach(function (d) {
+                    d.Frequency = +d.Frequency;
+                    d.Sentiment = d.Sentiment.toLowerCase(); // Convert sentiment to lowercase for consistency
+                });
+
+                data = data.slice(n, n+50);
+
+                // Sort the data based on frequency in descending order
+                data.sort((a, b) => b.Frequency - a.Frequency);
+
+                // Map sentiment to a color scale
+                const colorScale = d3.scaleOrdinal()
+                    .domain(['negative', 'neutral', 'positive'])
+                    .range(['red', 'blue', 'green']);
+
+                // Create a hierarchical data structure
+                const hierarchyData = {
+                    id: 'characters',
+                    children: data.map(item => ({ id: item.Character, value: item.Frequency, sentiment: item.Sentiment })),
+                };
+
+                // Create a treemap layout
+                const treemap = d3.treemap()
+                    .size([800, 500])
+                    .padding(1);
+
+                // Create a hierarchy
+                const root = d3.hierarchy(hierarchyData)
+                    .sum(d => d.value)
+                    .sort((a, b) => b.value - a.value);
+
+                // Compute the layout
+                treemap(root);
+
+                // Append an SVG element to the container
+                const svg = d3.select("#treemap").append("svg")
+                    .attr("width", 800)
+                    .attr("height", 500);
+
+                // Add rectangles for each node
+                const cell = svg.selectAll("g")
+                    .data(root.leaves())
+                    .enter().append("g")
+                    .attr("transform", d => `translate(${d.x0},${d.y0})`)
+                    .on("mouseover", handleMouseOver)
+                    .on("mouseout", handleMouseOut);
+
+                cell.append("rect")
+                    .attr("id", d => (d.leafUid = d.id))
+                    .attr("width", d => d.x1 - d.x0)
+                    .attr("height", d => d.y1 - d.y0)
+                    .attr("fill", d => colorScale(d.data.sentiment));
+
+                // Add text labels for each node
+                cell.append("text")
+                    .attr("x", d => (d.x1 - d.x0) / 2)
+                    .attr("y", d => (d.y1 - d.y0) / 2)
+                    .attr("dy", "0.35em")
+                    .attr("text-anchor", "middle")
+                    .style("font-size", d => Math.min((d.x1 - d.x0) / 5, (d.y1 - d.y0) / 5) + "px")
+                    .text(d => d.data.id);
+
+                // Create a legend
+                const legendSvg = d3.select("#legend").append("svg")
+                    .attr("width", 150)
+                    .attr("height", 120);
+
+                // Enclose legend in a rectangle
+                legendSvg.append("rect")
+                    .attr("class", "legend-rect")
+                    .attr("width", 150)
+                    .attr("height", 120);
+
+                const legendData = ['negative', 'neutral', 'positive'];
+                const legend = legendSvg.selectAll(".legend-item")
+                    .data(legendData)
+                    .enter().append("g")
+                    .attr("class", "legend-item")
+                    .attr("transform", (d, i) => `translate(10, ${i * 25 + 10})`)
+                    .on("click", legendClick)
+                    .on("mouseover", legendMouseOver)
+                    .on("mouseout", legendMouseOut);
+
+                legend.append("rect")
+                    .attr("class", "legend-color")
+                    .attr("width", 20)
+                    .attr("height", 20)
+                    .style("fill", d => colorScale(d));
+
+                legend.append("text")
+                    .attr("x", 30)
+                    .attr("y", 10)
+                    .attr("dy", "0.35em")
+                    .attr("class", "legend-text")
+                    .text(d => d.charAt(0).toUpperCase() + d.slice(1));
+
+                // Add zoom behavior
+                const zoom = d3.zoom()
+                    .scaleExtent([1, 8])
+                    .on("zoom", zoomed);
+
+                svg.call(zoom);
+
+                function zoomed(event) {
+                    svg.attr("transform", event.transform);
+                }
+
+                function handleMouseOver(event, d) {
+                    // Get the color of the hovered element
+                    const hoverColor = colorScale(d.data.sentiment);
+
+                    // Highlight elements with the same color and apply styling
+                    cell.selectAll("rect")
+                        .filter(node => colorScale(node.data.sentiment) === hoverColor)
+                        .classed("highlight", true)
+                        .attr("stroke", "black")
+                        .attr("stroke-width", 5);
+
+                    // Make text bold for the highlighted elements
+                    cell.selectAll("text")
+                        .filter(node => colorScale(node.data.sentiment) === hoverColor)
+                        .style("font-weight", "bold")
+                        .style("fill", "#EBF418 ");
+                }
+
+                function handleMouseOut() {
+                    // Reset stroke width to 1 for all rectangles
+                    cell.selectAll("rect")
+                        .classed("highlight", false)
+                        .attr("stroke-width", 1);
+                        
+
+                    // Reset font weight to normal for all text elements
+                    cell.selectAll("text")
+                        .style("font-weight", "normal")
+                        .style("fill", "white");
+                }
+
+                function legendClick(sentiment) {
+                    // Remove previous highlighted elements
+                    cell.selectAll("rect").classed("highlight", false);
+
+                    // Highlight elements with the selected sentiment
+                    cell.selectAll("rect")
+                        .filter(d => d.data.sentiment === sentiment)
+                        .classed("highlight", true);
+
+                    // Make text bold for the highlighted elements
+                    cell.selectAll("text")
+                        .filter(d => d.data.sentiment === sentiment)
+                        .style("font-weight", "bold");
+                }
+
+                function legendMouseOver(sentiment) {
+                    // Highlight elements with the selected sentiment
+                    cell.selectAll("rect")
+                        .filter(d => d.data.sentiment === sentiment)
+                        .classed("highlight", true);
+
+                    // Make text bold for the highlighted elements
+                    cell.selectAll("text")
+                        .filter(d => d.data.sentiment === sentiment)
+                        .style("font-weight", "bold")
+                        .style("font-color","black");
+                }
+
+                function legendMouseOut() {
+                    // Reset styling for all rectangles and text
+                    cell.selectAll("rect")
+                        .classed("highlight", false);
+                    cell.selectAll("text")
+                        .style("font-weight", "normal")
+                        .style("font-color","white");
+                }
+            }).catch(function (error) {
+                console.log("Error loading the CSV file:", error);
+            });
+        }
+    </script>
+
+</body>
+
+</html>

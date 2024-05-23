@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Cloud Example</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.5/d3.layout.cloud.js"></script>
+
+  <style>
+    body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 50px;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            display: block;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-image: url( {{ url_for('static', filename='images2.jpg') }});
+        }
+    /* Add your custom styles here */
+    .word-cloud {
+      max-width: 800px;
+      margin: 20px auto;
+    }
+
+    .word-cloud text {
+      cursor: pointer;
+      transition: font-size 0.8s ease;
+    }
+
+    .word-hovered, .circle-hovered {
+      fill: black;
+      font-size: 40px;
+      font-weight: bold;
+      font-family: 'Times New Roman', Times, serif;
+    }
+
+    .word-selected, .circle-selected {
+      fill: whitesmoke;
+    }
+    .movie-info {
+            margin-bottom: 10px;
+        }
+  </style>
+</head>
+<body>
+    <div style="border: 2px solid white; padding: 10px; background-color: white; width: 30%; height:70%; margin: 0 auto;">
+
+    {% if movie_name %}
+    <p>{{ "Matching element found, visualizing..." }}</p>
+    <!-- Display your matching movie details here -->
+    <p>Movie Name: {{ movie_name }}</p>
+    <p>Rating: {{ rating }}</p>
+    <!-- Add other movie details as needed -->
+{% else %}
+    <p>No matching movie found.</p>
+{% endif %}
+</div>
+<div class="word-cloud" id="word-cloud-container"></div>
+<button onclick="redirectToPrac2()">Next</button>
+
+<script>
+            function redirectToPrac2() {
+            window.location.href = "/prac2";
+        }
+    const userMovieName = "{{ movie_name }}";
+
+    // Load the CSV data
+    d3.csv("/get_wordfreq_csv").then(function (data) {
+        // Convert frequency values to numbers
+        data.forEach(function (d) {
+            d.Frequency = +d.Frequency;
+        });
+
+        // Filter the dataset based on the user-provided movie name
+        const selectedMovieData = data.filter(d => d.Movie_Name === userMovieName);
+
+        if (selectedMovieData.length > 0) {
+            // Extract words and frequency for the selected movie
+            const movieWordsData = selectedMovieData.map(d => ({ text: d.Word, size: d.Frequency * 5 }));
+
+            // Call the function to generate and display the word cloud
+            generateWordCloud(movieWordsData);
+        } else {
+            alert("Movie not found in the dataset.");
+        }
+
+        function generateWordCloud(words) {
+            const width = 800;
+            const height = 600;
+            const fontFamily = "Verdana, Arial, Helvetica, sans-serif";
+
+            const svg = d3.select("#word-cloud-container").append("svg")
+                .attr("id", "word-cloud")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("font-family", fontFamily)
+                .attr("text-anchor", "middle");
+
+            const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+            const cloudLayout = d3.layout.cloud()
+                .size([width, height])
+                .words(words)
+                .padding(8)
+                .rotate(() => 10)
+                .font(fontFamily)
+                .fontSize(d => d.size)
+                .on("end", draw);
+
+            cloudLayout.start();
+
+            function draw(words) {
+                const cloudContainer = svg.append("g")
+                    .attr("transform", `translate(${width / 2},${height / 2})`);
+
+                const wordElements = cloudContainer.selectAll("g")
+                    .data(words)
+                    .enter().append("g")
+                    .attr("transform", d => `translate(${d.x},${d.y})`)
+                    .classed("click-only-text", true)
+                    .classed("word-default", true)
+                    .call(d3.drag().on("drag", handleDrag))
+                    .on("mouseover", handleMouseOver)
+                    .on("mouseout", handleMouseOut)
+                    .on("click", handleClick);
+
+                wordElements.append("circle")
+                    .attr("r", 0) // Initial radius set to 0 for entering transition
+                    .style("fill", (d, i) => colorScale(i % 10))
+                    .transition() // Entering transition
+                    .duration(3000) // Adjust the duration as needed
+                    .attr("r", d => d.size);
+
+                wordElements.append("text")
+                    .attr("font-size", d => d.size / 3)
+                    .text(d => d.text)
+                    .attr("text-anchor", "middle")
+                    .attr("alignment-baseline", "middle");
+
+                function handleDrag(event, d) {
+                    d3.select(this).attr("transform", `translate(${d.x = event.x},${d.y = event.y})`);
+                }
+
+                function handleMouseOver(event, d) {
+                    d3.select(this).select("text").classed("word-hovered", true);
+                    d3.select(this).select("circle").classed("circle-hovered", true);
+                    d3.select(this).raise(); // Bring the hovered word to the front
+                }
+
+                function handleMouseOut(event, d) {
+                    d3.select(this).select("text").classed("word-hovered", false);
+                    d3.select(this).select("circle").classed("circle-hovered", false);
+                    d3.select(this).lower(); // Lower the circle back to its original order
+                }
+
+                function handleClick(event, d) {
+                    const wordElement = d3.select(this);
+                    wordElement.select("text").classed("word-selected", !wordElement.select("text").classed("word-selected"));
+                    wordElement.select("circle").classed("circle-selected", !wordElement.select("circle").classed("circle-selected"));
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Cloud Example</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.5/d3.layout.cloud.js"></script>
+
+  <style>
+    /* Add your custom styles here */
+    .word-cloud {
+      max-width: 800px;
+      margin: 20px auto;
+    }
+
+    .word-cloud text {
+      cursor: pointer;
+      transition: font-size 0.8s ease;
+    }
+
+    .word-hovered, .circle-hovered {
+      fill:black;
+      font-size:40px;
+      font-weight:bold;
+      font-family: 'Times New Roman', Times, serif;
+    }
+
+    .word-selected, .circle-selected {
+      fill: whitesmoke;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="word-cloud" id="word-cloud-container"></div>
+
+  <script>
+    d3.json("/pract", function(data) {
+      const word_frequency = data.word_frequency;
+
+      const width = 800;
+      const height = 600;
+      const fontFamily = "Verdana, Arial, Helvetica, sans-serif";
+
+      const svg = d3.select("#word-cloud-container").append("svg")
+        .attr("id", "word-cloud")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("font-family", fontFamily)
+        .attr("text-anchor", "middle");
+
+      svg.selectAll("text")
+        .data(word_frequency)
+        .enter().append("text")
+        .attr("x", d => Math.random() * width)
+        .attr("y", d => Math.random() * height)
+        .attr("font-size", d => Math.random() * 30 + 10)
+        .text(d => d)
+        .attr("text-anchor", "middle")
+        .attr("alignment-baseline", "middle");
+    });
+  </script>
+
+</body>
+</html>
